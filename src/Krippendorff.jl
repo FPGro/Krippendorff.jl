@@ -187,13 +187,40 @@ function compute_alpha_from_coincidence(C, distance_matrix)
     disagreement_observed = sum( C[i,j] * distance_matrix[i,j] for i in 1:l for j in i+1:l)
     disagreement_expected = sum( marginals[i] * marginals[j] * distance_matrix[i,j] for i in 1:l for j in i+1:l)
     # it would be sufficient to evaluate just the upper or lower triangle of each, but I don't think this would be faster
-    return 1 - (n-1)*(disagreement_observed / disagreement_expected)
+    return 1. - (n-1)*(disagreement_observed / disagreement_expected)
 end
 
 # TODO docstring
 # generic without coincidence matrix
 function compute_alpha(::Generic, _, distance_metric, units_iterator)
-    
+    disagreement_observed = 0.
+    disagreement_expected = 0.
+    n_all = 0
+    # one huge pass over the data: always add pairs to the expected term and 
+    # to the observed term only when within one unit
+    # to avoid duplications, enumerate both units iterator and skip all redundant
+    for (i_s, unit_s) in enumerate(units_iterator) 
+        n_inunit = length(unit_s)
+        n_inunit > 1 || continue
+        n_all += n_inunit
+        for (i_t, unit_t) in enumerate(units_iterator) 
+            length(unit_t) > 1 || continue
+            i_t < i_s && continue # skip backwards pairs of units
+            if i_s == i_t
+                # both iters in same unit, iter forward pairs only
+                unitsum = sum( distance_metric(i,j) 
+                                for (i_pos, i) in enumerate(unit_s) 
+                                for (j_pos, j) in enumerate(unit_t) 
+                                if i_pos ≥ j_pos) # count same position pairs once for consistency, should be equal to i_pos > j_pos unless the metric violates d(x,x)==0
+                disagreement_observed += unitsum * (1 / n_inunit-1)
+                disagreement_expected += unitsum
+            else
+                # iters in different units, iter both full, add only to expected disagreement term
+                disagreement_expected += sum( distance_metric(i,j) for i in unit_s for j in unit_t )
+            end
+        end
+    end
+    return 1. - (n_all-1)*(disagreement_observed / disagreement_expected)
 end
 
 end # module
