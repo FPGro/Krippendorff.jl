@@ -372,11 +372,10 @@ false
 julia> Krippendorff.istable(Tables.table(testmatrix));
 Input satisfies the Tables.jl table interface and appears to have 3 rows and 5 columns.
 
-julia> testvectordict = Dict([k=>v for (k,v) in zip([:row1, :row2, :row3], eachrow(testmatrix))])
-Dict{Symbol, SubArray{Int64, 1, Base.ReshapedArray{Int64, 2, UnitRange{Int64}, Tuple{}}, Tuple{Int64, Base.Slice{Base.OneTo{Int64}}}, true}} with 3 entries:
-  :row1 => [1, 4, 7, 10, 13]
-  :row2 => [2, 5, 8, 11, 14]
-  :row3 => [3, 6, 9, 12, 15]
+julia> testvectordict = Dict([k=>v for (k,v) in zip([:row1, :row2, :row3], eachrow(testmatrix))]); [println(entry) for entry in testvectordict];
+:row1 => [1, 4, 7, 10, 13]
+:row2 => [2, 5, 8, 11, 14]
+:row3 => [3, 6, 9, 12, 15]
 
 julia> Krippendorff.istable(testvectordict)
 Input satisfies the Tables.jl table interface and appears to have 5 rows and 3 columns.
