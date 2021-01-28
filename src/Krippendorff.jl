@@ -27,6 +27,11 @@ See [`prepare_iterator`](@ref) for more information about the input requirements
 
 See also: [`compute_alpha_generical`](@ref), [`compute_alpha_with_coincidences`](@ref)
 """
+function krippendorffs_alpha(input; units::Union{Symbol,AbstractString} = UNITSDEFAULT, metric = :nominal, R = :discrete, silent::Bool = false)
+    units_iterator, elementtype, inputsize = _dispatch_units_iterator(input, Symbol(units); silent)
+    implementation, possible_responses = _dispatch_responses(R, units_iterator, elementtype, inputsize)
+    distance_metric_squared = _dispatch_metric(metric, elementtype; silent)
+    return _compute_alpha(implementation, possible_responses, distance_metric_squared, units_iterator)
 end
 
 const alpha = krippendorffs_alpha # enables Krippendorff.alpha
@@ -34,14 +39,10 @@ export krippendorffs_alpha
 
 ## input type dispatch + find a meaningful elementtype + size of the whole thing
 
-# fallback version if not specialized
-# checks if Tables.jl interface implemented, 
-# then if eachrow/eachcolumn work, 
-# then if generic iteration works and finally fails if nothing is possible
-function dispatch_units_iterator(input, units::Symbol)
+function _dispatch_units_iterator(input, units::Symbol; silent::Bool = false)
     units ∈ (:rows, :columns, :cols) || error("\"units\" must be one of :rows or :col(umn)s, got: $(units)")
     userows = units === :rows # use rows as units or not (use columns then)
-    units, elementtype, sizeestimate = units_eltype_and_size(input, userows)
+    units, elementtype, sizeestimate = _units_eltype_and_size(input, userows; silent)
     # if missings are allowed, wrap every unit in a skipmissings
     prepared_iter, prepared_eltype = Missing<:elementtype ? ((skipmissing(u) for u in units), nonmissingtype(elementtype)) : (units, elementtype)
     return (prepared_iter, prepared_eltype, sizeestimate)
@@ -49,7 +50,7 @@ end
 
 # use multiple dispatch to find an appropriate units_iterator, eltype and size for different types
 
-function units_eltype_and_size(input, userows::Bool)
+function _units_eltype_and_size(input, userows::Bool; silent::Bool = false)
     # fallback, check Tables.jl interface via istable, else assume generic iterability 
     if Tables.istable(input)
         if userows
@@ -57,7 +58,9 @@ function units_eltype_and_size(input, userows::Bool)
             schema = Tables.schema(rows)
             if isnothing(schema)
                 # infer from first row
-                @info "Schema-less table detected, infering layout from first row only. This may lead to unexpected results."
+                if !silent
+                    @info "Schema-less table detected, infering layout from first row only. This may lead to unexpected results."
+                end
                 firstrow, _ = iterate(Iterators.take(rows,1))
                 elementtype = reduce((x,y)->Union{x,y}, (typeof(entry) for entry in firstrow), init=Base.Bottom)
                 colnames = Tables.columnnames(firstrow)
@@ -75,7 +78,9 @@ function units_eltype_and_size(input, userows::Bool)
             schema = Tables.schema(cols)
             if isnothing(schema)
                 # infer from first row
-                @info "Schema-less table detected, infering types from first column only. This may lead to unexpected results."
+                if !silent
+                    @info "Schema-less table detected, infering types from first column only. This may lead to unexpected results."
+                end
                 colnames = Tables.columnnames(columns)
                 firstcol = Tables.getcolumn(columns, 1)
                 elementtype = reduce((x,y)->Union{x,y}, (typeof(entry) for entry in firstcol), init=Base.Bottom)
@@ -96,24 +101,26 @@ function units_eltype_and_size(input, userows::Bool)
         units = (values(unit) for unit in values(input))
         sizeestimate = sum(length(unit) for unit in units)
         elementtype = reduce((x,y)->Union{x,y}, (eltype(unit) for unit in units), init=Base.Bottom)
-        @info "Input has no notion of rows and columns, iterating it is expected to yield units."
+        if !silent
+            @info "Input has no notion of rows and columns, iterating it is expected to yield units."
+        end
         return (units, elementtype, sizeestimate)
     end
 end
 
-function units_eltype_and_size(input::AbstractMatrix, userows::Bool)
+function _units_eltype_and_size(input::AbstractMatrix, userows::Bool)
     iter = userows ? eachrow(input) : eachcol(input)
     return (iter, eltype(input), *(length(axes(input,1)), length(axes(input,2))))
 end
 
 ## dispatch possible responses
 
-function dispatch_responses(R, _,_,_)
+function _dispatch_responses(R, _,_,_)
     # if not a Symbol: assume R is precomputed and reasonable
     return (Coincidence(), R)
 end
 
-function dispatch_responses(R::Union{Symbol,AbstractString}, itr, elementtype, inputsize)
+function _dispatch_responses(R::Union{Symbol,AbstractString}, itr, elementtype, inputsize)
     Rsym = Symbol(R)
     if Rsym === :continuous 
         return (Generic(), nothing)
@@ -136,7 +143,7 @@ end
 
 # try to find a more efficient mapping strategy than dict(unique_values => indices)
 # i.e. if the input looks like a range and is sufficiently dense, then make it a range
-function optimize_possible_reponses(uniquevalues, elementtype)
+function _optimize_possible_reponses(uniquevalues, elementtype)
     # if extended to a range, how many empty indices may appear at worst
     allowedsparsity::Float64 = 0.5
     if elementtype <: Integer # relax to number?
@@ -157,31 +164,30 @@ function optimize_possible_reponses(uniquevalues, elementtype)
 end
 
 # return a function that maps all possible values to indices into a coincidence matrix axis
-map_responses_to_indices(::Nothing) = nothing
-map_responses_to_indices(::Base.OneTo) = identity
-map_responses_to_indices(possible_responses::UnitRange) = Base.Fix2(-, possible_responses.start - 1)
-function map_responses_to_indices(possible_responses)
+_map_responses_to_indices(::Nothing) = nothing
+_map_responses_to_indices(::Base.OneTo) = identity
+_map_responses_to_indices(possible_responses::UnitRange) = Base.Fix2(-, possible_responses.start - 1)
+function _map_responses_to_indices(possible_responses)
     let mapping = Dict(reverse.(collect(pairs(possible_responses))))
         return x -> mapping[x]
     end
 end
 
 ## dispatch inputs for metric (and assert that it fits the elementtype)
-const KNOWNMETRICS = [:nominal, :interval]
 
-function dispatch_metric(metric::Union{Symbol, AbstractString}, elementtype)
+function _dispatch_metric(metric::Union{Symbol, AbstractString}, elementtype; silent::Bool = false)
     m = Symbol(metric)
     if m === :nominal
         return (!=)
     elseif m === :interval
-        elementtype <: Number || @warn "Interval metric is unlikely to work with non-numeric responses."
+        elementtype <: Number || (!silent && @warn "Interval metric is unlikely to work with non-numeric responses.")
         return (x,y)->abs2(x-y)
     else 
         raise(ArgumentError("Metric $(m) is currently not known. Try to use one of: $(KNOWNMETRICS)"))
     end
 end
 
-function dispatch_metric(metric, _) # takes everything that's not a symbol or string
+function _dispatch_metric(metric, _; _...) # takes everything that's not a symbol or string
     # assumes that it's a valid function defined on every pair of possible responses
     return metric
 end
@@ -189,7 +195,7 @@ end
 # from a distance metric and the set of possible responses mapping to the coincidence matrix indices, 
 # compute a symmetric distance matrix once for later evaluation
 
-function compute_distance_matrix(possible_responses, mapping_function::F, distance_metric_squared) where {F}
+function _compute_distance_matrix(possible_responses, mapping_function::F, distance_metric_squared) where {F}
     l = length(possible_responses)
     D = zeros(l,l)
     for rᵢ in possible_responses, rⱼ in possible_responses
@@ -208,16 +214,16 @@ struct Generic<:KrippendorffComputationStrategy end
 
 # TODO docstrings
 # using coincidence matrix
-function compute_alpha(::Coincidence, possible_responses, distance_metric_squared, units_iterator)
-    mapping_function = map_responses_to_indices(possible_responses)
-    distances = compute_distance_matrix(possible_responses, mapping_function, distance_metric_squared)
+function _compute_alpha(::Coincidence, possible_responses, distance_metric_squared, units_iterator)
+    mapping_function = _map_responses_to_indices(possible_responses)
+    distances = _compute_distance_matrix(possible_responses, mapping_function, distance_metric_squared)
     l = length(possible_responses)
     C = zeros(l, l) # initialize coincidence matrix
-    fill_coincidence_matrix!(C, mapping_function, units_iterator)
-    return compute_alpha_from_coincidence(C, distances)
+    _fill_coincidence_matrix!(C, mapping_function, units_iterator)
+    return _evaluate_coincidence_matrix(C, distances)
 end
 
-function fill_coincidence_matrix!(C, mapping_function::F, units_iterator) where {F} # should force specialization
+function _fill_coincidence_matrix!(C, mapping_function::F, units_iterator) where {F} # should force specialization
     for unit in units_iterator
         increment::Float64 = 1 / (count(x->true,unit) - 1) # count(...) because skipmissings have no length
         for i in eachindex(unit), j in eachindex(unit)
@@ -231,7 +237,7 @@ function fill_coincidence_matrix!(C, mapping_function::F, units_iterator) where 
     end
 end
 
-function compute_alpha_from_coincidence(C, distance_matrix)
+function _evaluate_coincidence_matrix(C, distance_matrix)
     l = size(C,1)
     marginals = sum(C, dims=1)
     n = sum(marginals)
@@ -241,9 +247,8 @@ function compute_alpha_from_coincidence(C, distance_matrix)
     return 1. - (n-1)*(disagreement_observed / disagreement_expected)
 end
 
-# TODO docstring
 # generic without coincidence matrix
-function compute_alpha(::Generic, _, distance_metric, units_iterator)
+function _compute_alpha(::Generic, _, distance_metric, units_iterator)
     disagreement_observed = 0.
     disagreement_expected = 0.
     n_all = 0
