@@ -329,8 +329,8 @@ Prepare an object for iteration by one of the `compute_alpha_...` functions.
 This involves determining how to iterate over units in the object and probing for the elementtype.
 If appropriate, the `units` argument is used to determine the direction of iteration. This is however
 not always possible. If no sense of direction is found, the heuristic will assume the input is already
-a suitable iterator over units. Furthermore, if the input is found to contain [`missing`](@ref) values
-(or has them in it's eltype), all units will be wrapped in [`skipmissing`](@ref) automatically.
+a suitable iterator over units. Furthermore, if the input is found to contain [`missing`](@ref Base.missing) values
+(or has them in it's eltype), all units will be wrapped in [`skipmissing`](@ref Base.skipmissing) automatically.
 
 Since some seemingly unstructured iterables can satisfy the `Tables.jl` interface somewhat surprisingly
 (Dict{Symbol,Vector} does, but not Dict{String,Vector} for example) and this may change the order of 
@@ -339,7 +339,7 @@ input looks like a `table` and if yes, how many rows and columns it appears to h
 
 # Arguments
 
-- `input`: The input to be prepared. Should support generic iteration via [`iterate`](@ref), [`eachrow`](@ref) or [`eachcol`](@ref) or satisfy the `Tables.jl` interface as determined by [`Tables.istable`](@ref).
+- `input`: The input to be prepared. Should support generic iteration via [`iterate`](@ref Base.iterate), [`eachrow`](@ref Base.eachrow) or [`eachcol`](@ref Base.eachcol) or satisfy the `Tables.jl` interface as determined by [`Tables.istable`](@ref).
 - `units::Union{Symbol,AbstractString}`: either `rows` or `col(umn)s`. This is used to determine how to iterate units in the input. For example, if the input iterator was a `Matrix`, `:rows` would make the function call `eachrow(input)` (and a little bit more). 
 """
 function prepare_iterator(input, units::Union{Symbol,AbstractString} = UNITSDEFAULT) 
@@ -359,18 +359,16 @@ to have when iterated through the `Tables.jl` interface. ([`Tables.columns`](@re
 The `Tables.jl` interface assumes named columns and unnamed rows, which may lead to confusion 
 if one wanted to pass a dictionary of rows for examples:
 ```jldoctest
-julia> using Krippendorff, Tables;
-
 julia> testmatrix = reshape(1:15, (3,5))
 3×5 reshape(::UnitRange{Int64}, 3, 5) with eltype Int64:
  1  4  7  10  13
  2  5  8  11  14
  3  6  9  12  15
 
-julia> Krippendorff.istable(testmatrix)
+julia> istable(testmatrix)
 false
 
-julia> Krippendorff.istable(Tables.table(testmatrix));
+julia> istable(Tables.table(testmatrix));
 Input satisfies the Tables.jl table interface and appears to have 3 rows and 5 columns.
 
 julia> testvectordict = Dict([k=>v for (k,v) in zip([:row1, :row2, :row3], eachrow(testmatrix))])
@@ -379,7 +377,7 @@ Dict{Symbol, SubArray{Int64, 1, Base.ReshapedArray{Int64, 2, UnitRange{Int64}, T
   :row2 => [2, 5, 8, 11, 14]
   :row3 => [3, 6, 9, 12, 15]
 
-julia> Krippendorff.istable(testvectordict)
+julia> istable(testvectordict)
 Input satisfies the Tables.jl table interface and appears to have 5 rows and 3 columns.
 true
 ```
