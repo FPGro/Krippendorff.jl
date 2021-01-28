@@ -358,17 +358,18 @@ to have when iterated through the `Tables.jl` interface. ([`Tables.columns`](@re
 
 The `Tables.jl` interface assumes named columns and unnamed rows, which may lead to confusion 
 if one wanted to pass a dictionary of rows for examples:
-```jldoctest
+
+```jldoctest; setup = :(using Krippendorff, Tables)
 julia> testmatrix = reshape(1:15, (3,5))
 3×5 reshape(::UnitRange{Int64}, 3, 5) with eltype Int64:
  1  4  7  10  13
  2  5  8  11  14
  3  6  9  12  15
 
-julia> istable(testmatrix)
+julia> Krippendorff.istable(testmatrix)
 false
 
-julia> istable(Tables.table(testmatrix));
+julia> Krippendorff.istable(Tables.table(testmatrix));
 Input satisfies the Tables.jl table interface and appears to have 3 rows and 5 columns.
 
 julia> testvectordict = Dict([k=>v for (k,v) in zip([:row1, :row2, :row3], eachrow(testmatrix))])
@@ -377,7 +378,7 @@ Dict{Symbol, SubArray{Int64, 1, Base.ReshapedArray{Int64, 2, UnitRange{Int64}, T
   :row2 => [2, 5, 8, 11, 14]
   :row3 => [3, 6, 9, 12, 15]
 
-julia> istable(testvectordict)
+julia> Krippendorff.istable(testvectordict)
 Input satisfies the Tables.jl table interface and appears to have 5 rows and 3 columns.
 true
 ```
