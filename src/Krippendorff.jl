@@ -339,7 +339,7 @@ input looks like a `table` and if yes, how many rows and columns it appears to h
 - `units::Union{Symbol,AbstractString}`: either `rows` or `col(umn)s`. This is used to determine how to iterate units in the input. For example, if the input iterator was a `Matrix`, `:rows` would make the function call `eachrow(input)` (and a little bit more). 
 """
 function prepare_iterator(input, units::Union{Symbol,AbstractString} = UNITSDEFAULT) 
-    units_iter, _, _ = dispatch_units_iterator(input, Symbol(units))
+    units_iter, _, _ = _dispatch_units_iterator(input, Symbol(units))
     return units_iter
 end
 
