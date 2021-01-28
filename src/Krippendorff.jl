@@ -108,7 +108,7 @@ function _units_eltype_and_size(input, userows::Bool; silent::Bool = false)
     end
 end
 
-function _units_eltype_and_size(input::AbstractMatrix, userows::Bool)
+function _units_eltype_and_size(input::AbstractMatrix, userows::Bool; silent::Bool = false)
     iter = userows ? eachrow(input) : eachcol(input)
     return (iter, eltype(input), *(length(axes(input,1)), length(axes(input,2))))
 end
