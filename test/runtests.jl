@@ -28,7 +28,7 @@ kripp_intervall = Krippendorff._dispatch_metric(:interval, Int)
 test_intervall = (x,y)->abs2(x-y)
 intervaltest_rands = rand(Int,(100,2))
 @test all([kripp_intervall(rands[1],rands[2]) for rands in eachrow(intervaltest_rands)] .== [test_intervall(rands[1],rands[2]) for rands in eachrow(intervaltest_rands)])
-@test_throws ErrorException Krippendorff._dispatch_metric(:blob, Int)
+@test_throws ArgumentError Krippendorff._dispatch_metric(:blob, Int)
 testmetric = (x,y)->(x-y)
 @test Krippendorff._dispatch_metric(testmetric, Int) == testmetric
 # _compute_distance_matrix
