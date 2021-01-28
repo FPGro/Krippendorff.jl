@@ -187,7 +187,7 @@ function _dispatch_metric(metric::Union{Symbol, AbstractString}, elementtype; si
     end
 end
 
-function _dispatch_metric(metric, _; _...) # takes everything that's not a symbol or string
+function _dispatch_metric(metric, elt; _...) # takes everything that's not a symbol or string
     # assumes that it's a valid function defined on every pair of possible responses
     return metric
 end
