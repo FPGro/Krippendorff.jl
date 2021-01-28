@@ -183,7 +183,7 @@ function _dispatch_metric(metric::Union{Symbol, AbstractString}, elementtype; si
         elementtype <: Number || (!silent && @warn "Interval metric is unlikely to work with non-numeric responses.")
         return (x,y)->abs2(x-y)
     else 
-        raise(ArgumentError("Metric $(m) is currently not known. Try to use one of: $(KNOWNMETRICS)"))
+        throw(ArgumentError("Metric $(m) is currently not known. Try to use one of: $(KNOWNMETRICS)"))
     end
 end
 
