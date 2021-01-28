@@ -2,35 +2,31 @@ module Krippendorff
 
 using Tables
 
-# TODO:
-# - documentation
-# - check for correctness
-# - add remaining metrices
-# - add tests
-
-# general plan
-# - common function entry point
-#     - multiple methods (Matrix, maybe Dict, Default to assuming a Tables.jl interface)
-#     - preprare units iterator for workhorse function
-#     - maybe keywords for customization
-# - workhorse function doing the actual computation
-#     - at least 2 versions
-#     - for "small" amount of possible values in the table, use fast method via contingency tables
-#     - direct computation fallback (slower)
-#     - liberal choice of metrices (nominal, ordinal, squared, interval, custom)
+const UNITSDEFAULT = :rows
+const KNOWNMETRICS = [:nominal, :interval]
 
 ## common entry point
 
-# TODO docstrings
-# input = input
-# units = :rows, "rows", :columns, "columns" whether units are rows or columns 
-# metric = one of (String or Symbol) nominal, ordinal, interval, ratio,...? or a custom squared! metric function
-# R = :discrete (default), :continuous (leads to avoiding coincidence matrices) or precomputed (unique values of the input)
-function krippendorffs_alpha(input; units::Union{Symbol,AbstractString} = :columns, metric = :nominal, R = :discrete)
-    units_iterator, elementtype, inputsize = dispatch_units_iterator(input, Symbol(units))
-    implementation, possible_responses = dispatch_responses(R, units_iterator, elementtype, inputsize)
-    distance_metric_squared = dispatch_metric(metric, elementtype)
-    return compute_alpha(implementation, possible_responses, distance_metric_squared, units_iterator)
+# warn that NamedTuples/Dicts of Vectors and Vectors of NamedTuples/Dicts 
+# can satisfy the tables interface. See Krippendorff.istable
+"""
+    krippendorffs_alpha(input; units = $(UNITSDEFAULT), metric = :nominal, R = :discrete, silent = false)
+    Krippendorff.alpha(input; kwargs)
+
+Compute the Krippendorff's-α inter-rater reliability measure from the supplied input. The input will 
+be checked to determine how to iterate over it, `missing` values will be handled automatically if present 
+and the most efficient algorithm to compute α will be determined heuristically. By default, `Tables.jl` 
+tables and table-like inputs are assumed to have columns representing raters and rows representing units.
+See [`prepare_iterator`](@ref) for more information about the input requirements.
+
+# Arguments
+- `units::Union{Symbol,AbstractString}`: `rows` or `col(umn)s`, see [`prepare_iterator`](@ref) for explanation
+- `metric`: a metric computing the squared distance between any pair of responses. Any of $(KNOWNMETRICS) or a custom function. Should satisfy `f(x,y) = [0 if x==y], [>0 otherwise]` but this is not enforced. See README for explanation of the default metrics.
+- `R`: The space of possible responses. Either `:discrete` (relatively few possible responses, uses fast computation via coincidence matrix), `:continuous` (many possible responses up to continuous range, uses a slower but generically applicable algorithm with minimal allocation) or a precomputed value (implies discrete, but avoids searching for all unique values). If precomputed, it should be supplied as a tuple or vector of possible values (e.g. the output of unique(yourdata)), or as an appropriate range object where possible (slightly more efficient). 
+- `silent::Bool`: set to disable all optional output (`@info` and `@warn`, doesn't affect error messages)
+
+See also: [`compute_alpha_generical`](@ref), [`compute_alpha_with_coincidences`](@ref)
+"""
 end
 
 const alpha = krippendorffs_alpha # enables Krippendorff.alpha
@@ -276,6 +272,116 @@ function compute_alpha(::Generic, _, distance_metric, units_iterator)
         end
     end
     return 1. - ((n_all-1)*(disagreement_observed / disagreement_expected))
+end
+
+## utility stuff
+
+# thin wrappers for backends with explanation 
+
+"""
+    compute_alpha_generical(units_iterator, squared_distance_metric)
+
+Generic computation backend for Krippendorffs alpha, bypassing the creation of coincidence tables
+entirely. The tradeof in this case is the necessity to iterate over all pairs of units. Thus, scaling
+is typically much worse (in O(U²*R) for (U)nits and (R)aters) than when using coicidence matrices.
+Nonetheless, this backend will be used by default if the number of possible responses is large 
+compared to the size of the input, since a coincidence matrix can get huge in this case.
+It is also preferable when all possible responses are not known beforehand or span a continuous
+spectrum of values. 
+
+# Arguments
+
+- `units_iterator`: An iterable object which is assumed to yield units with no `missings`. If this is not the case, you can call [`prepare_iterator`](@ref) on it.
+- `squared_distance_metric`: An object callable on any pair of possible responses in the supplied iterator. Should satisfy `f(x,y) = [0 if x==y], [>0 otherwise]` but this is not checked explicitly.
+"""
+compute_alpha_generical(units, metric) = _compute_alpha(Generic(), nothing, metric, units)
+
+"""
+    compute_alpha_with_coincidences(units, metric, possible_responses)
+
+The default fast computation backend for Krippendorffs alpha. This will iterate over all units only once
+and thus scales preferably if the number of differing possible responses is bounded. A coincidence matrix
+is generated to keep track of the observed disagreement, while the expected disagreement will be computed
+from the marginals of the coincidence matrix.
+Be careful, if the number of possible responses is large, this backend may allocate a lot! 
+
+# Arguments 
+
+- `units_iterator`: An iterable object which is assumed to yield units with no `missings`. If this is not the case, you can call [`prepare_iterator`](@ref) on it.
+- `squared_distance_metric`: An object callable on any pair of possible responses in the supplied iterator. Should satisfy `f(x,y) = [0 if x==y], [>0 otherwise]` but this is not checked explicitly.
+- `R`: Space of possible responses. This is necessary to generate the coincidence matrix efficiently. It should be supplied as a tuple or vector of possible values (e.g. the output of unique(yourdata)), or as an appropriate range object where possible. 
+"""
+compute_alpha_with_coincidences(units, metric, R) = _compute_alpha(Coincidence(), R, metric, units)
+
+"""
+    prepare_iterator(input; units = $(UNITSDEFAULT))
+
+Prepare an object for iteration by one of the `compute_alpha_...` functions. 
+This involves determining how to iterate over units in the object and probing for the elementtype.
+If appropriate, the `units` argument is used to determine the direction of iteration. This is however
+not always possible. If no sense of direction is found, the heuristic will assume the input is already
+a suitable iterator over units. Furthermore, if the input is found to contain [`missing`](@ref) values
+(or has them in it's eltype), all units will be wrapped in [`skipmissing`](@ref) automatically.
+
+Since some seemingly unstructured iterables can satisfy the `Tables.jl` interface somewhat surprisingly
+(Dict{Symbol,Vector} does, but not Dict{String,Vector} for example) and this may change the order of 
+iteration implied, you can call the helper function [`Krippendorff.istable`](@ref) to see whether your
+input looks like a `table` and if yes, how many rows and columns it appears to have.
+
+# Arguments
+
+- `input`: The input to be prepared. Should support generic iteration via [`iterate`](@ref), [`eachrow`](@ref) or [`eachcol`](@ref) or satisfy the `Tables.jl` interface as determined by [`Tables.istable`](@ref).
+- `units::Union{Symbol,AbstractString}`: either `rows` or `col(umn)s`. This is used to determine how to iterate units in the input. For example, if the input iterator was a `Matrix`, `:rows` would make the function call `eachrow(input)` (and a little bit more). 
+"""
+function prepare_iterator(input, units::Union{Symbol,AbstractString} = UNITSDEFAULT) 
+    units_iter, _, _ = dispatch_units_iterator(input, Symbol(units))
+    return units_iter
+end
+
+"""
+    istable(input; IO = stdout)
+
+A thin wrapper around [`Tables.istable`](@ref) that additionally prints how man rows and columns the input appears
+to have when iterated through the `Tables.jl` interface. ([`Tables.columns`](@ref) specifically)
+`IO` can be used to redirect the written output. Pass `IO=devnull` to supress output (making it equivalent to calling [`Tables.istable`](@ref))
+
+# Examples
+
+The `Tables.jl` interface assumes named columns and unnamed rows, which may lead to confusion 
+if one wanted to pass a dictionary of rows for examples:
+```jldoctest
+julia> testmatrix = reshape(1:15, (3,5))
+3×5 reshape(::UnitRange{Int64}, 3, 5) with eltype Int64:
+ 1  4  7  10  13
+ 2  5  8  11  14
+ 3  6  9  12  15
+
+julia> istable(testmatrix)
+false
+
+julia> using Tables; istable(Tables.table(testmatrix));
+Input satisfies the Tables.jl table interface and appears to have 3 rows and 5 columns.
+
+julia> testvectordict = Dict([k=>v for (k,v) in zip([:row1, :row2, :row3], eachrow(testmatrix))])
+Dict{Symbol, SubArray{Int64, 1, Base.ReshapedArray{Int64, 2, UnitRange{Int64}, Tuple{}}, Tuple{Int64, Base.Slice{Base.OneTo{Int64}}}, true}} with 3 entries:
+  :row1 => [1, 4, 7, 10, 13]
+  :row2 => [2, 5, 8, 11, 14]
+  :row3 => [3, 6, 9, 12, 15]
+
+julia> istable(testvectordict)
+Input satisfies the Tables.jl table interface and appears to have 5 rows and 3 columns.
+true
+```
+"""
+function istable(input; IO = stdout)
+    table = Tables.istable(input)
+    if table
+        itr = Tables.columns(input)
+        cols = length(Tables.columnnames(itr))
+        rows = cols==0 ? 0 : length(Tables.getcolumn(itr,1))
+        println(IO, "Input satisfies the Tables.jl table interface and appears to have $(rows) rows and $(cols) columns.")
+    end
+    return table
 end
 
 end # module
