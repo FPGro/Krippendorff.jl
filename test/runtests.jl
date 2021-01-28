@@ -1,4 +1,6 @@
-using Test, Krippendorff, Tables
+using Test
+using Krippendorff
+using Tables
 
 # write some tests
 # should do some unit tests and then some tests against known reliability values
