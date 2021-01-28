@@ -1,3 +1,7 @@
+# TODO insert header
+"""
+I should totally document the module
+"""
 module Krippendorff
 
 using Tables
