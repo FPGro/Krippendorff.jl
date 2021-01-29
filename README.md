@@ -7,7 +7,7 @@
 
 Julia implementation of Krippendorff's alpha Inter-rater reliability measure.
 
-# Quickstart
+## Quickstart
 
 ```julia
 using Krippendorff
@@ -19,7 +19,7 @@ Should be sufficient in the majority of cases. Note that by default, Krippendorf
 in your data correspond to units and columns represent different raters. For more information, see 
 the docs or consult the Julia help mode.
 
-# TODOs:
+## TODOs:
 - check for correctness: Basic checks have been done, but more and especially edge cases should be incorporated into the tests.
 - add remaining metrices: At least ordinal, ratio, (bi)polar and circular metrics are still missing.
 - add parallelism: The variant using a coincidence matrix should be relatively easy to parallelize. I'd like to play around with Transducers a little and may add a third fast backend eventually.

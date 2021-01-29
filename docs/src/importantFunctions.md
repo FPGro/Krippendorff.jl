@@ -9,8 +9,8 @@ temporary tables entirely, but typically scales much worse.
 
 ```@docs
 krippendorffs_alpha
-compute_alpha_with_coincidences
-compute_alpha_generical
-prepare_iterator
-istable
+Krippendorff.compute_alpha_with_coincidences
+Krippendorff.compute_alpha_generical
+Krippendorff.prepare_iterator
+Krippendorff.istable
 ```
