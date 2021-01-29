@@ -18,7 +18,35 @@
 #
 
 """
-I should totally document the module
+# Krippendorff.jl
+
+Krippendorff's alpha in Julia
+
+This package aims to provide easy access to the afforementioned inter-rater reliability measure.
+The main entry point (and sole exported function) is [`krippendorffs_alpha`](@ref), which provides an 
+easy-to-use interface for most requirements. `alpha` is the unexported alias for `krippendorffs_alpha`,
+allowing the usage of `Krippendorff.alpha`. 
+
+Alpha is used to quantify the amount of agreement or disagreement of a number of raters that assign
+values (responses) to different units (subjects/tasks) according to a common code. It is conceptually
+similar to other measures like Cohen's κ, Scott's π, Fleiss' κ or intra-class correlation, but is more
+generally applicable. Alpha can be computer for any number of raters and units, allows for missing values,
+is corrected for small sample sizes and works with various levels of measurement, which govern the 
+distance metric that is used in the computation. Thus, alpha works with nominal, ordinal, interval, 
+(bi)polar, circular and ratio variables. (and possibly more)
+
+The high-level function will *just work* with most data. Inputs are required to either be iterable
+julia objects or satisfy the [`Tables.jl`](https://github.com/JuliaData/Tables.jl) interface (as 
+determined by `Tables.istable`), in which case they will be accessed via `Tables.rows` or `Tables.columns`.
+Missing values are handled and the algorithm tries to determine the set of possible responses 
+automatically. Depending on these, one of currently two computational backends is choosen to compute 
+alpha. Thin wrappers around these backends with proper documentation are [`compute_alpha_generical`](@ref)
+and [`compute_alpha_with_coincidences`](@ref).
+
+# References
+
+- Krippendorff, Klaus. (2011). Computing Krippendorff's Alpha-Reliability. Retrieved from https://repository.upenn.edu/asc_papers/43
+- Hayes, Andrew & Krippendorff, Klaus. (2007). Answering the Call for a Standard Reliability Measure for Coding Data. Communication Methods and Measures. 1. 77-89. 10.1080/19312450709336664. 
 """
 module Krippendorff
 
@@ -32,8 +60,8 @@ const KNOWNMETRICS = [:nominal, :interval]
 # warn that NamedTuples/Dicts of Vectors and Vectors of NamedTuples/Dicts 
 # can satisfy the tables interface. See Krippendorff.istable
 """
+    Krippendorff.alpha(...)
     krippendorffs_alpha(input; units = $(UNITSDEFAULT), metric = :nominal, R = :discrete, silent = false)
-    Krippendorff.alpha(input; kwargs)
 
 Compute the Krippendorff's-α inter-rater reliability measure from the supplied input. The input will 
 be checked to determine how to iterate over it, `missing` values will be handled automatically if present 

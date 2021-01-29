@@ -3,11 +3,12 @@ using Krippendorff
 
 push!(LOAD_PATH,"../src/")
 makedocs(
-    sitename = "Krippendorff",
+    sitename = "Krippendorff.jl",
     format = Documenter.HTML(),
     pages = [
-            "Index" => "index.md",
-            "An other page" => "anotherPage.md",
+            "Krippendorffs Alpha" => "index.md",
+            "Important Functions" => "importantFunctions.md",
+            "About" => "about.md"
          ]
 )
 
