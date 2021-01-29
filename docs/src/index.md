@@ -8,7 +8,7 @@ this package provides a pure Julia implementation of the *Krippendorff's alpha* 
 Krippendorff
 ```
 
-Most of the code was modeled directly after Krippendorffs explanations in the first reference.
+Most of the code was modeled directly after Krippendorffs explanations in the first reference above.
 
 ## Module Index
 

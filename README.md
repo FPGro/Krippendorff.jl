@@ -4,21 +4,25 @@
 [![](https://img.shields.io/badge/docs-dev-blue.svg)](https://FPGro.github.io/Krippendorff.jl/dev)
 
 # Krippendorff.jl
-Julia implementation of Krippendorff's Alpha Inter-rater reliability measure
 
-## TODO:
-- documentation
-- check for correctness
-- add remaining metrices
-- add tests
+Julia implementation of Krippendorff's alpha Inter-rater reliability measure.
 
-## general plan
-- common function entry point
-    - multiple methods (Matrix, maybe Dict, Default to assuming a Tables.jl interface)
-    - preprare units iterator for workhorse function
-    - maybe keywords for customization
-- workhorse function doing the actual computation
-    - at least 2 versions
-    - for "small" amount of possible values in the table, use fast method via contingency tables
-    - direct computation fallback (slower)
-    - liberal choice of metrices (nominal, ordinal, squared, interval, custom)
+# Quickstart
+
+```julia
+using Krippendorff
+data = ...
+krippendorffs_alpha(data)
+```
+
+Should be sufficient in the majority of cases. Note that by default, Krippendorff assumes that rows 
+in your data correspond to units and columns represent different raters. For more information, see 
+the docs or consult the Julia help mode.
+
+# TODOs:
+- check for correctness: Basic checks have been done, but more and especially edge cases should be incorporated into the tests.
+- add remaining metrices: At least ordinal, ratio, (bi)polar and circular metrics are still missing.
+- add parallelism: The variant using a coincidence matrix should be relatively easy to parallelize. I'd like to play around with Transducers a little and may add a third fast backend eventually.
+- find other irr implementations: A whole package for a single metric seems a little out of proportion. If more similar implementations exist (different metrices, etc.), it may be worthwile to collect them into a more wholesome package. (feel free to contact me in this direction)
+
+Extra: take a look at the *About* page in the docs to learn why this package was created.
