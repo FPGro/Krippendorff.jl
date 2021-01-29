@@ -14,3 +14,9 @@ in Julia:
 # The maintainer
 
 Is currently employed by the University of Leipzig, Germany. I'm reachable via GitHub, the Julia Zulip and Discourse and mail: `f.grosse<at>studserv.uni-leipzig.de`
+
+# Special Thanks
+
+Goes to *Antonello Lobianco*, for his Julia tutorial repository and GitBook, the [section](https://syl1.gitbook.io/julia-language-a-concise-tutorial/language-core/11-developing-julia-packages) on **Developing Julia Package** which helped me out a lot in creating this package and setting up documentation and CI. Thank you.
+
+> A. Lobianco, (2018), “Julia language: a concise tutorial", GitBook, https://syl1.gitbook.io/julia-language-a-concise-tutorial, retrieved 28/01/2021
