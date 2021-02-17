@@ -90,7 +90,7 @@ export krippendorffs_alpha
 ## input type dispatch + find a meaningful elementtype + size of the whole thing
 
 function _dispatch_units_iterator(input, units::Symbol; silent::Bool = false)
-    units ∈ (:rows, :columns, :cols) || error("\"units\" must be one of :rows or :col(umn)s, got: $(units)")
+    units ∈ (:rows, :columns, :cols) || throw(ArgumentError("\"units\" must be one of :rows or :col(umn)s, got: $(units)"))
     userows = units === :rows # use rows as units or not (use columns then)
     units, elementtype, sizeestimate = _units_eltype_and_size(input, userows; silent)
     # if missings are allowed, wrap every unit in a skipmissings
