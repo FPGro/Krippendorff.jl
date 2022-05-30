@@ -75,7 +75,7 @@ end
 
 ## istable
 # not strictly necessary, because this only wraps Tables.istable + fancy output
-let mat = rand((10,20))
+let mat = rand(Int, (10,20))
     @test Krippendorff.istable(mat) === false
     @test Krippendorff.istable(Tables.table(mat)) === true
 end
