@@ -74,17 +74,22 @@ end
 @test collect(Iterators.flatten(Krippendorff.prepare_iterator([[1,2,missing],[missing,missing,missing],[3,missing]]))) == [1,2,3]
 
 ## istable
-# not strictly necessary, because this only wraps Tables.istable + fancy output
 let mat = rand(Int, (10,20))
     @test Krippendorff.istable(mat) === false
     @test Krippendorff.istable(Tables.table(mat)) === true
 end
 for reallyatable in (   (a = [1,2,3], b = [4.,5.,6.]), # NamedTuple of Vectors
                         Dict([:a => [1,2,3], :b => [4.,5.,6.]]), # Dict{Symbol,Vector}
-                        [(a = 1,b = 2), (a = 3, c = 4)], # Vector of NamedTuples
-                        [Dict([:a => 2, :b => 4]), Dict([:a => 01, :c => 10])], # Vector of Dict{Symbol,_}
+                        [(a = 1,b = 2), (a = 3, b = 4)], # Vector of NamedTuples
+                        [Dict([:a => 2, :b => 4]), Dict([:a => 01, :b => 10])], # Vector of Dict{Symbol,_}
                     )
     @test Krippendorff.istable(reallyatable) === true
+end
+# failing as Tables.istable edgecases
+for brokentable in (   [(a = 1,b = 2), (a = 3, c = 4)], # Vector of NamedTuples with non-matching column names
+                        [Dict([:a => 2, :b => 4]), Dict([:a => 01, :c => 10])], # Vector of Dict{Symbol,_} with non-matching column names
+                    )
+    @test_broken Krippendorff.istable(brokentable) === true
 end
 for notatable in (  (a = [1,2,3], b = nothing), # NamedTuple of Any
                     Dict(["a" => [1,2,3], "b" => [4.,5.,6.]]), # Dict{not_Symbol,Vector}
