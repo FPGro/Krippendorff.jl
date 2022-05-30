@@ -79,17 +79,17 @@ let mat = rand(Int, (10,20))
     @test Krippendorff.istable(mat) === false
     @test Krippendorff.istable(Tables.table(mat)) === true
 end
-for reallyatable in [   (a = [1,2,3], b = [4.,5.,6.]) # NamedTuple of Vectors
-                        Dict([:a => [1,2,3], :b => [4.,5.,6.]]) # Dict{Symbol,Vector}
-                        [(a = 1,b = 2), (a = 3, c = 4)] # Vector of NamedTuples
-                        [Dict([:a => 2, :b => 4]), Dict([:a => 01, :c => 10])] # Vector of Dict{Symbol,_}
-                    ]
+for reallyatable in (   (a = [1,2,3], b = [4.,5.,6.]), # NamedTuple of Vectors
+                        Dict([:a => [1,2,3], :b => [4.,5.,6.]]), # Dict{Symbol,Vector}
+                        [(a = 1,b = 2), (a = 3, c = 4)], # Vector of NamedTuples
+                        [Dict([:a => 2, :b => 4]), Dict([:a => 01, :c => 10])], # Vector of Dict{Symbol,_}
+                    )
     @test Krippendorff.istable(reallyatable) === true
 end
-for notatable in [  (a = [1,2,3], b = nothing) # NamedTuple of Any
-                    Dict(["a" => [1,2,3], "b" => [4.,5.,6.]]) # Dict{not_Symbol,Vector}
-                    Dict([:a => [1,2,3], :b => nothing]) # Dict{Symbol,not_Vector}
-                    [Dict([1 => 2, 3 => 4]), Dict([1 => 01, 2 => 10])] # Vector of Dict{not_Symbol,_}
-                ]
+for notatable in (  (a = [1,2,3], b = nothing), # NamedTuple of Any
+                    Dict(["a" => [1,2,3], "b" => [4.,5.,6.]]), # Dict{not_Symbol,Vector}
+                    Dict([:a => [1,2,3], :b => nothing]), # Dict{Symbol,not_Vector}
+                    [Dict([1 => 2, 3 => 4]), Dict([1 => 01, 2 => 10])], # Vector of Dict{not_Symbol,_}
+                )
     @test Krippendorff.istable(notatable) === false
 end
