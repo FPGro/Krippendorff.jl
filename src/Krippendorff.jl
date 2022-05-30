@@ -394,11 +394,15 @@ function prepare_iterator(input, units::Union{Symbol,AbstractString} = UNITSDEFA
 end
 
 """
-    istable(input; IO = stdout)
+    Krippendorff.istable([stdout::IO], input)
 
-A thin wrapper around `Tables.istable` that additionally prints how man rows and columns the input appears
+A wrapper around `Tables.istable` that additionally tries to find out how man rows and columns the input appears
 to have when iterated through the `Tables.jl` interface. (`Tables.columns` specifically)
-`IO` can be used to redirect the written output. Pass `IO=devnull` to supress output (making it equivalent to calling `Tables.istable`
+May consume the input in the process if your input happens to be volatile.
+There are some edgecases that appear to be valid tables by means of `Tables.istable` but are really not usable as such,
+like for example vectors of NamedTuples with inconsistent column names. This function should now issue a warning in
+such a case, but if you encounter an input that appears like it should work but it doesn't, feel free to open an issue.
+`IO` can be used to redirect the written output. Pass `devnull` as IO to supress output (making it equivalent to calling `Tables.istable`)
 
 # Examples
 
@@ -428,13 +432,24 @@ Input satisfies the Tables.jl table interface and appears to have 5 rows and 3 c
 true
 ```
 """
-function istable(input; IO = stdout)
+istable(input) = istable(stdout, input)
+function istable(io::IO, input)
     table = Tables.istable(input)
     if table
-        itr = Tables.columns(input)
-        cols = length(Tables.columnnames(itr))
-        rows = cols==0 ? 0 : length(Tables.getcolumn(itr,1))
-        println(IO, "Input satisfies the Tables.jl table interface and appears to have $(rows) rows and $(cols) columns.")
+        try
+            itr = Tables.columns(input)
+            cols = length(Tables.columnnames(itr))
+            rows = cols==0 ? 0 : length(Tables.getcolumn(itr,1))
+            println(io, "Input satisfies the Tables.jl table interface and appears to have $(rows) rows and $(cols) columns.")
+        catch e 
+            println(io, """
+                The input appears to be a table as per `Tables.istable` but does not seem to support iteration over columns.
+                It may be malformed, have missing columns halfway through or such. You can try to cast it to a more structured 
+                input type. It will likely not work as an input for the computation of Krippendorffs alpha as is. 
+                If you think that your input should work but find that it does not, please open an issue on GitHub.
+            """)
+            return false
+        end
     end
     return table
 end
